@@ -1,7 +1,37 @@
+#include <string>
+
 #include <mbed.h>
 #include "EthernetInterface.h"
 
-void
+#include "glove.h"
+#include "httpclient.h"
+
+int
+main()
+{
+  printf("Welcome\r\n");
+  Acceleration acceleration(3116, 12, 13);
+  Hand hand(CLOSE, CLOSE, OPEN, UNDEFINED, OPEN);
+  Glove glove(acceleration, hand);
+
+  std::string postData = glove.postData();
+
+  HttpClient client("POST", "glove.drewknolton.com", "/");
+  if (client.getCurrentError().compare("") == 0) {
+    client.addHeaderField("Content-Type", "application/x-www-form-urlencoded");
+    client.setContent(postData);
+    std::string response = client.send();
+    if (client.getCurrentError().compare("") != 0) {
+      printf("%s\r\n", client.getCurrentError().c_str());
+    } else {
+      printf("Success : %s\r\n", response.c_str());
+    }
+  } else {
+      printf("%s\r\n", client.getCurrentError().c_str());
+  }
+}
+
+/*void
 errorMessage(nsapi_error_t err)
 {
   int error = (int) err;
@@ -36,6 +66,12 @@ errorMessage(nsapi_error_t err)
 int
 main() {
 
+  Acceleration acceleration(3116, 12, 13);
+  Hand hand(CLOSE, CLOSE, OPEN, UNDEFINED, OPEN);
+  Glove glove(acceleration, hand);
+
+  std::string postData = glove.postData();
+
   printf("Welcome\r\n");
   DigitalOut led(LED1);
   EthernetInterface eth;
@@ -51,15 +87,17 @@ main() {
   nsapi_error_t tcpError = socket.connect(target, 80);
 
   if (0 == int(tcpError)) {
-    char sbuffer[] = "GET / HTTP/1.1\r\nHost: %s\r\n\r\n";
-    char buffer[100];
-    sprintf(buffer, sbuffer, target);
-    int scount = socket.send(buffer, sizeof buffer);
+    char sbuffer[] = "POST / HTTP/1.1\r\nHost: %s\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: %d\r\n\r\n";
+    char buffer[1024];
+    sprintf(buffer, sbuffer, target, postData.size());
+    sprintf(buffer, "%s%s\r\n", buffer, postData.c_str());
 
-    char rbuffer[256];
+    printf("%s\r\n", buffer);
+    int scount = socket.send(buffer, strlen(buffer));
+
+    char rbuffer[1024];
     int rcount = socket.recv(rbuffer, sizeof rbuffer);
     printf("%s\r\n", rbuffer);
-    //printf("recv %d [%s]\r\n", rcount, rbuffer);
     fflush(stdout);
   } else {
     printf("TCP Error: %d\r\n", (int)tcpError);
@@ -74,3 +112,4 @@ main() {
     wait_ms(100);
   }
 }
+*/
