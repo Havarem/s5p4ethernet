@@ -1,18 +1,121 @@
 #include <string>
 
 #include <mbed.h>
+#include <rtos.h>
 #include "EthernetInterface.h"
 
 #include "glove.h"
 #include "httpclient.h"
+#include "Logger.h"
+
+Serial receptor(p13, p14, 115200);
+
+Thread listenReceptor;
+Thread tcpWriter;
+
+char label, pattern, direction;
+char symbol[64];
+
+void
+listenReceptorRoutine(void)
+{
+  symbol[0] = 1;
+  pattern = 0x1E;
+  direction = 2;
+  label = 'a';
+
+  while (1) {
+    symbol[0] = symbol[0]++;
+    pattern = pattern++ % 32;
+    direction = direction % 5;
+    tcpWriter.flags_set(0x01);
+    ThisThread::flags_wait_any(0x0A);
+  }
+  /*while (1)
+  {
+    if (receptor.readable()) {
+      char current = receptor.getc();
+
+      if (current == 0xFF) {
+        label = receptor.getc();
+        strcpy(symbol, "");;
+        pattern = '\0';
+        direction = '\0';
+
+        switch (current) {
+        case 's': {
+          symbol[0] = receptor.getc();
+          pattern = receptor.getc();
+          break;
+        }
+        case 'd': {
+          direction = receptor.getc();
+          break;
+        }
+        case 'a': {
+          symbol[0] = receptor.getc();
+          pattern = receptor.getc();
+          direction = receptor.getc();
+          break;
+        }
+        }
+
+        tcpWriter.signal_set(0x01);
+        Thread::signal_wait(0x0A);
+      }
+    }
+  }*/
+}
+
+void
+tcpWriterRoutine(void)
+{
+  HttpClient client("POST", "glove.drewknolton.com", "/");
+  client.addHeaderField("Content-Type", "application/x-www-form-urlencoded");
+
+  if (client.getCurrentError().compare("") == 0) {
+    listenReceptor.start(listenReceptorRoutine);
+
+    while(1) {
+      ThisThread::flags_wait_any(0x01);
+
+      Glove glove;
+
+      if (label == 's' || label == 'a') {
+        finger_t pinky  = (pattern & 0x01)      == 0 ? CLOSE : OPEN;
+        finger_t ring   = (pattern & 0x02) >> 1 == 0 ? CLOSE : OPEN;
+        finger_t middle = (pattern & 0x04) >> 2 == 0 ? CLOSE : OPEN;
+        finger_t index  = (pattern & 0x08) >> 3 == 0 ? CLOSE : OPEN;
+        finger_t thumb  = (pattern * 0x10) >> 4 == 0 ? CLOSE : OPEN;
+
+        Hand hand(pinky, ring, middle, index, thumb);
+        glove.setHand(hand);
+        glove.setSymbol(symbol);
+      }
+
+      if (label == 'd' || label == 'a') {
+        Acceleration accel(0, 0, 0);
+        glove.setAcceleration(accel);
+        glove.setDirection(direction);
+      }
+
+      client.setContent(glove.postData());
+      std::string response = client.send();
+      printf("Response:\r\n%s\r\n", response.c_str());
+    }
+  }
+}
 
 int
 main()
 {
-  printf("Welcome\r\n");
-  Acceleration acceleration(3116, 12, 13);
+  Logger::getLogger().logDebug("MAIN THREAD", "Welcome");
+
+  /*Acceleration acceleration(2000, 1050, 443);
   Hand hand(CLOSE, CLOSE, OPEN, UNDEFINED, OPEN);
-  Glove glove(acceleration, hand);
+  char symbol[64];
+  strcpy(symbol, "3");
+  Glove glove(acceleration, hand, symbol);
 
   std::string postData = glove.postData();
 
@@ -28,7 +131,28 @@ main()
     }
   } else {
       printf("%s\r\n", client.getCurrentError().c_str());
-  }
+  }*/
+
+  /*printf("\r\n\r\nReceiving data from receptor\r\n\r\n");
+  while (1) {
+    if (receptor.readable()) {
+      char current = receptor.getc();
+      if (current == 0xFF) {
+        printf("0x%02x ", current);
+
+        while (current != 0xFE) {
+          current = receptor.getc();
+          printf("0x%02x ", current);
+        }
+
+        printf("\r\n");
+      }
+      //printf("0x%02x ", receptor.getc());
+      //fflush(stdout);
+    }
+  }*/
+
+
 }
 
 /*void
