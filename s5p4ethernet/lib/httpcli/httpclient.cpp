@@ -9,14 +9,6 @@ HttpClient::HttpClient()
   setContent(std::string(""));
 }
 
-/*HttpClient::HttpClient(HttpMethod _method, std::string _host, std::string _target)
-  : HttpClient()
-{
-  host = _host;
-  setMethod(_method);
-  setTarget(_target);
-}*/
-
 HttpClient::HttpClient(std::string _method, std::string _host, std::string _target)
   : HttpClient()
 {
@@ -29,10 +21,12 @@ HttpClient::HttpClient(std::string _method, std::string _host, std::string _targ
     currentError = statusNetwork;
   } else {
     socket.open(&eth);
+    /*
     nsapi_error_t tcpError = socket.connect(host.c_str(), 80);
     if (tcpError < 0) {
       currentError = tcpError;
     }
+    */
   }
 }
 
@@ -132,7 +126,7 @@ HttpClient::getCurrentError()
     return std::string("Device busy.");
   default :
     if (currentError < 0) return std::string("Unknown Error");
-    return std::string("");
+    return std::string("No erreur");
   }
 }
 
@@ -141,25 +135,10 @@ HttpClient::send()
 {
   char result[512];
 
-  // HTTP Request First Line
-  //sprintf(result, "%s %s %s\r\n", MethodName[method], target, protocol);
   sprintf(result, "%s %s %s\r\n", method.c_str(), target.c_str(), protocol.c_str());
-
   sprintf(result, "%sHost: %s\r\n", result, host.c_str());
-
-  // Adding supported headers
-  /*for (int i = 0; i < sizeof HeaderFieldName; i++) {
-    if (headerFieldValues[i].compare("") != 0) {
-      sprintf(result, "%s%s: %s\r\n", result, HeaderFieldName[i], headerFieldValues[i]);
-    }
-  }*/
-  //if (headerFieldValues[0].compare("") != 0) {
-    sprintf(result, "%s%s: %s\r\n", result, "User-Agent", "S5-P4-Glove-Eth-Module");
-  //}
-
-  //if (headerFieldValues[1].compare("") != 0) {
-    sprintf(result, "%s%s: %s\r\n", result, "Content-Type", "application/x-www-form-urlencoded");
-  //}
+  sprintf(result, "%s%s: %s\r\n", result, "User-Agent", "S5-P4-Glove-Eth-Module");
+  sprintf(result, "%s%s: %s\r\n", result, "Content-Type", "application/x-www-form-urlencoded");
 
   if (method.compare("POST") == 0) {
     sprintf(result, "%s%s: %d\r\n", result, "Content-Length", sizeof (content));
@@ -173,14 +152,26 @@ HttpClient::send()
     sprintf(result, "%s%s\r\n", result, content.c_str());
   }
 
-  printf("\r\nMessage: \r\n%s\r\n", result);
+  // printf("\r\nMessage: \r\n%s\r\n", result);
   int scount = socket.send(result, strlen(result));
   currentError = scount;
 
   if (scount >= 0) {
     char rbuffer[1024];
-    socket.recv(rbuffer, sizeof rbuffer);
-    return std::string(rbuffer);
+    nsapi_error_t tcpError = socket.connect(host.c_str(), 80);
+    if (tcpError < 0) {
+      currentError = tcpError;
+      return getCurrentError();
+    } else {
+      socket.recv(rbuffer, sizeof rbuffer);
+      return std::string(rbuffer);
+    }
   }
-  return std::string("");
+  return std::string("We didn't received data (%d)", scount);
+}
+
+void
+HttpClient::closeTcp()
+{
+  socket.close();
 }

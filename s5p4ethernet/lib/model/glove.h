@@ -16,7 +16,7 @@ class Glove {
 
   public:
     Glove() {};
-    Glove(Acceleration, Hand, char[64], char);
+    Glove(Acceleration, Hand, char[64], uint8_t);
 
     std::string postData();
 

@@ -1,6 +1,6 @@
 #include "glove.h"
 
-Glove::Glove(Acceleration _acceleration, Hand _hand, char _symbol[64], char _direction)
+Glove::Glove(Acceleration _acceleration, Hand _hand, char _symbol[64], uint8_t _direction)
 {
   acceleration = _acceleration;
   hand = _hand;
@@ -11,9 +11,9 @@ Glove::Glove(Acceleration _acceleration, Hand _hand, char _symbol[64], char _dir
 std::string
 Glove::postData()
 {
-  char tmp[] = "gloveX=%d&gloveY=%d&gloveZ=%d&symbol=%s&pinky=%d&ring=%d&middle=%d&index=%d&thumb=%d&direction=&s\r\n";
+  char tmp[] = "gloveX=%d&gloveY=%d&gloveZ=%d&symbol=%s&pinky=%d&ring=%d&middle=%d&index=%d&thumb=%d&direction=%d\r\n";
   char data[256];
-  sprintf(data, tmp, acceleration.getX(), acceleration.getY(), acceleration.getZ(), symbol, (int)hand.getPinky(), (int)hand.getRing(), (int)hand.getMiddle(), (int)hand.getIndex(), (int)hand.getPinky(), direction);
+  sprintf(data, tmp, (int)acceleration.getX(), (int)acceleration.getY(), (int)acceleration.getZ(), symbol, (int)hand.getPinky(), (int)hand.getRing(), (int)hand.getMiddle(), (int)hand.getIndex(), (int)hand.getPinky(), (int)direction);
 
   std::string result(data);
 

@@ -48,6 +48,8 @@ class HttpClient {
 
     std::string send();
 
+    void closeTcp();
+
   private:
     //HttpMethod method;
     std::string method;
