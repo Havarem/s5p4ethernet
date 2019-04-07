@@ -22,47 +22,68 @@ get_current_error(nsapi_error_t error)
   {
   case -3001 :
     strcpy(result, "Would Block.");
+    break;
   case -3002 :
     strcpy(result, "Unsupported.");
+    break;
   case -3003 :
     strcpy(result, "Invalid configuration.");
+    break;
   case -3004 :
     strcpy(result, "No connection.");
+    break;
   case -3005 :
     strcpy(result, "No socket.");
+    break;
   case -3006 :
     strcpy(result, "No address.");
+    break;
   case -3007 :
     strcpy(result, "No memory.");
+    break;
   case -3008 :
     strcpy(result, "No SSID.");
+    break;
   case -3009 :
     strcpy(result, "DNS Failure.");
+    break;
   case -3010 :
     strcpy(result, "DHCP Failure.");
+    break;
   case -3011 :
     strcpy(result, "Authentication failure.");
+    break;
   case -3012 :
     strcpy(result, "Device error.");
+    break;
   case -3013 :
     strcpy(result, "Operation in progress.");
+    break;
   case -3014 :
     strcpy(result, "Operation already in progress.");
+    break;
   case -3015 :
     strcpy(result, "Socket already connected.");
+    break;
   case -3016 :
     strcpy(result, "Connection lost.");
+    break;
   case -3017 :
     strcpy(result, "Connection timeout.");
+    break;
   case -3018 :
     strcpy(result, "Address already in use.");
+    break;
   case -3019 :
     strcpy(result, "Operation timeout.");
+    break;
   case -3020 :
     strcpy(result, "Device busy.");
+    break;
   default :
     if (error < 0) strcpy(result, "Unknown Error");
-    strcpy(result, "No erreur");
+    else strcpy(result, "No erreur");
+    break;
   }
   return result;
 }
@@ -93,29 +114,43 @@ http_sender_thread(void)
       strcpy(http_request, "POST /entry.php HTTP/1.1\r\n");
       strcat(http_request, "Host: glove.drewknolton.com\r\n");
       strcat(http_request, "Content-Type: application/x-www-form-urlencoded\r\n");
-      strcat(http_request, "Content-Length: %d\r\n\r\n%s\0");
+      strcat(http_request, "Content-Length: %d\r\n\r\n%s");
       sprintf(http_request, http_request, (strlen(current.message) + 1), current.message);
 
       nsapi_error_t tcp_status = socket.open(&eth);
-      int open = 0;
       if (0 > (int)tcp_status) {
         Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_status), (int)tcp_status);
         http_state_monitor->flags_set(0x02);
-      } else {
-        nsapi_error_t tcp_connect = socket.connect("glove.drewknolton.com", 80);
-        if (0 > (int)tcp_connect) {
-          Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect), (int)tcp_connect);
-          http_state_monitor->flags_set(0x08);
-        } else {
-          nsapi_error_t tcp_connect_error = socket.send(http_request, strlen(http_request));
-          if (0 > (int)tcp_connect_error) {
-            Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect_error), (int)tcp_connect_error);
-            http_state_monitor->flags_set(0x04);
-          }
-        }
-
-        socket.close();
+        http_sender.terminate();
       }
+
+      nsapi_error_t tcp_connect = socket.connect("glove.drewknolton.com", 80);
+      if (0 > (int)tcp_connect) {
+        Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect), (int)tcp_connect);
+        http_state_monitor->flags_set(0x08);
+        http_sender.terminate();
+      }
+
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Prior to sending...");
+      nsapi_error_t tcp_connect_error = socket.send(http_request, strlen(http_request));
+      if (0 > (int)tcp_connect_error) {
+        Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect_error), (int)tcp_connect_error);
+        http_state_monitor->flags_set(0x04);
+      } else {
+        Logger::getLogger().logInfo(DEBUG_HTTP_CLIENT, "Data sent.");
+      }
+
+      char rbuffer[1024];
+
+      nsapi_error_t tcp_receive = socket.recv(rbuffer, 1024);
+
+      nsapi_error_t tcp_close = socket.close();
+      if (0 > (int)tcp_close) {
+        Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_close), (int)tcp_close);
+      } else {
+        Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Socket closed");
+      }
+
     }
   }
 }
