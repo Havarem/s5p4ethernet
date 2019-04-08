@@ -117,40 +117,65 @@ http_sender_thread(void)
       strcat(http_request, "Content-Length: %d\r\n\r\n%s");
       sprintf(http_request, http_request, (strlen(current.message) + 1), current.message);
 
+      socket.set_timeout(-1);
+
+      us_timestamp_t timing;
+      timer.reset();
+      timer.start();
       nsapi_error_t tcp_status = socket.open(&eth);
       if (0 > (int)tcp_status) {
         Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_status), (int)tcp_status);
         http_state_monitor->flags_set(0x02);
         http_sender.terminate();
       }
+      timer.stop();
+      timing = timer.read_high_resolution_us();
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Opening socket in %llu microseconds", timing);
 
+      timer.reset();
+      timer.start();
       nsapi_error_t tcp_connect = socket.connect("glove.drewknolton.com", 80);
       if (0 > (int)tcp_connect) {
         Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect), (int)tcp_connect);
         http_state_monitor->flags_set(0x08);
         http_sender.terminate();
       }
+      timer.stop();
+      timing = timer.read_high_resolution_us();
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Connecting socket in %llu microseconds", timing);
 
-      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Prior to sending...");
+      timer.reset();
+      timer.start();
       nsapi_error_t tcp_connect_error = socket.send(http_request, strlen(http_request));
       if (0 > (int)tcp_connect_error) {
         Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_connect_error), (int)tcp_connect_error);
         http_state_monitor->flags_set(0x04);
-      } else {
-        Logger::getLogger().logInfo(DEBUG_HTTP_CLIENT, "Data sent.");
       }
+      timer.stop();
+      timing = timer.read_high_resolution_us();
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Sending data in %llu microseconds", timing);
 
-      char rbuffer[1024];
 
-      nsapi_error_t tcp_receive = socket.recv(rbuffer, 1024);
+      socket.set_timeout(0);
+      timer.reset();
+      timer.start();
+      char rbuffer[256];
+      nsapi_error_t tcp_receive = socket.recv(rbuffer, 256);
+      timer.stop();
+      timing = timer.read_high_resolution_us();
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Receiving response in %llu microseconds", timing);
 
+      timer.reset();
+      timer.start();
       nsapi_error_t tcp_close = socket.close();
       if (0 > (int)tcp_close) {
         Logger::getLogger().logError(DEBUG_HTTP_CLIENT, "Socket: %s (%d)", get_current_error(tcp_close), (int)tcp_close);
       } else {
         Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Socket closed");
       }
-
+      timer.stop();
+      timing = timer.read_high_resolution_us();
+      Logger::getLogger().logDebug(DEBUG_HTTP_CLIENT, "Closing socket in %llu microseconds", timing);
     }
   }
 }

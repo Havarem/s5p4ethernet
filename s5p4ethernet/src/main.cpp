@@ -43,6 +43,6 @@ main()
         strcpy(m->message, message.message);
         http_messages.put(m);
       }
-      ThisThread::sleep_for(5000);
+      ThisThread::sleep_for(1000);
   }
 }
